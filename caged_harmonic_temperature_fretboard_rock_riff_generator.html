@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CAGED · Harmonic Temperature & Rock Riff Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&family=Inter:wght@400;500;600;700;800&display=swap');
+
+    :root {
+      --bg: #0d0a07;
+      --surface-dark: #140e0a;
+      --surface: #1d140e;
+      --surface-light: #2c1e15;
+      --border: rgba(212, 136, 0, 0.2);
+      --border-bright: rgba(212, 136, 0, 0.4);
+      --gold: #d48800;
+      --gold-light: #f5b033;
+      --blue: #2563eb;
+      --green: #16a34a;
+      --red: #dc2626;
+      --purple: #9333ea;
+      --cyan: #0891b2;
+      --font-mono: 'Fira Code', monospace;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: #e5e7eb;
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(212, 136, 0, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(37, 99, 235, 0.05) 0%, transparent 40%);
+    }
+
+    .font-mono { font-family: var(--font-mono); }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { height: 8px; width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--surface-dark); }
+    ::-webkit-scrollbar-thumb { background: var(--surface-light); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+
+    /* Custom Range Inputs */
+    input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: var(--surface-light);
+      height: 6px;
+      border-radius: 3px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--gold);
+      cursor: pointer;
+      border: 2px solid var(--bg);
+      transition: transform 0.1s, background-color 0.1s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      background: var(--gold-light);
+    }
+
+    /* Tab Visualizer Styling */
+    .tab-container {
+      font-family: var(--font-mono);
+      background: #090705;
+      border: 1px solid var(--border);
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
+    }
+
+    /* Fretboard SVG Styles */
+    .fretboard-svg {
+      user-select: none;
+      filter: drop-shadow(0 10px 15px rgba(0,0,0,0.5));
+    }
+
+    .note-dot {
+      transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), fill 0.2s, stroke 0.2s;
+    }
+    .note-dot:hover {
+      transform: scale(1.3);
+      cursor: pointer;
+    }
+
+    /* Active playing highlight glow */
+    @keyframes pulse-glow {
+      0% { r: 12px; stroke-width: 2px; opacity: 1; }
+      50% { r: 18px; stroke-width: 4px; opacity: 0.8; }
+      100% { r: 12px; stroke-width: 2px; opacity: 1; }
+    }
+
+    .playing-note {
+      animation: pulse-glow 0.4s infinite alternate;
+      stroke: #ffffff !important;
+    }
+
+    /* Custom Select */
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23d48800'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.5rem center;
+      background-size: 1.2em;
+    }
+
+    /* Tab Bar Highlight Column */
+    .tab-col-highlight {
+      background-color: rgba(212, 136, 0, 0.25);
+      border-radius: 3px;
+      color: #fff;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body class="p-2 sm:p-4 md:p-6">
+
+  <div class="max-w-7xl mx-auto space-y-6">
+
+    <!-- HEADER -->
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center p-4 rounded-xl bg-gradient-to-r from-[#1d140e] via-[#140e0a] to-[#0d0a07] border border-[var(--border)] shadow-2xl gap-4">
+      <div class="flex items-center gap-3">
+        <div class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-500">
+          <i class="fa-solid fa-guitar text-2xl"></i>
+        </div>
+        <div>
+          <h1 class="text-xl sm:text-2xl font-extrabold tracking-wider uppercase text-white flex items-center gap-2">
+            CAGED <span class="text-amber-500">· Harmonic Temperature</span>
+          </h1>
+          <p class="text-xs text-amber-200/60 font-medium">Interactive Fretboard Engine & Procedural Rock Riff Generator</p>
+        </div>
+      </div>
+
+      <!-- Master Audio Status & Volume -->
+      <div class="flex items-center gap-4 bg-[#090705] px-4 py-2 rounded-lg border border-[var(--border)] w-full md:w-auto justify-between md:justify-start">
+        <div class="flex items-center gap-2">
+          <button id="audioInitBtn" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-black font-bold text-xs rounded-md transition flex items-center gap-2 shadow-lg">
+            <i class="fa-solid fa-power-off"></i> Audio Engine
+          </button>
+          <span id="audioStatus" class="inline-block w-2.5 h-2.5 rounded-full bg-red-500" title="Audio Engine Status"></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-volume-high text-xs text-amber-500/70"></i>
+          <input type="range" id="masterVolume" min="0" max="1" step="0.05" value="0.7" class="w-20" title="Master Volume">
+        </div>
+      </div>
+    </header>
+
+    <!-- FRETBOARD CONTROLS PANEL -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 p-4 rounded-xl bg-[#140e0a] border border-[var(--border)] shadow-lg text-xs">
+      
+      <!-- Key Selection -->
+      <div class="flex flex-col gap-1">
+        <label class="text-amber-500/80 uppercase font-semibold tracking-wider">Root Key</label>
+        <select id="keySelect" class="bg-[#1d140e] border border-[var(--border-bright)] text-amber-100 rounded-lg p-2 font-medium focus:outline-none focus:border-amber-500 pr-8">
+          <!-- Populated by JS -->
+        </select>
+      </div>
+
+      <!-- Scale / Mode -->
+      <div class="flex flex-col gap-1">
+        <label class="text-amber-500/80 uppercase font-semibold tracking-wider">Scale / Mode</label>
+        <select id="modeSelect" class="bg-[#1d140e] border border-[var(--border-bright)] text-amber-100 rounded-lg p-2 font-medium focus:outline-none focus:border-amber-500 pr-8">
+          <option value="pentatonic_minor">Minor Pentatonic</option>
+          <option value="blues">Blues Scale (with ♭5)</option>
+          <option value="minor">Natural Minor (Aeolian)</option>
+          <option value="dorian">Dorian Mode</option>
+          <option value="pentatonic_major">Major Pentatonic</option>
+          <option value="major">Major Scale (Ionian)</option>
+          <option value="mixolydian">Mixolydian (Rock Major)</option>
+        </select>
+      </div>
+
+      <!-- Display View Mode -->
+      <div class="flex flex-col gap-1">
+        <label class="text-amber-500/80 uppercase font-semibold tracking-wider">Note Labels</label>
+        <select id="viewSelect" class="bg-[#1d140e] border border-[var(--border-bright)] text-amber-100 rounded-lg p-2 font-medium focus:outline-none focus:border-amber-500 pr-8">
+          <option value="interval">Interval Map (1, ♭3, 5...)</option>
+          <option value="letter">Note Names (C, D#, G...)</option>
+        </select>
+      </div>
+
+      <!-- CAGED Shape Filter -->
+      <div class="flex flex-col gap-1">
+        <label class="text-amber-500/80 uppercase font-semibold tracking-wider">CAGED Position</label>
+        <select id="shapeSelect" class="bg-[#1d140e] border border-[var(--border-bright)] text-amber-100 rounded-lg p-2 font-medium focus:outline-none focus:border-amber-500 pr-8">
+          <option value="all">Full Fretboard (All Shapes)</option>
+          <option value="C">C Shape Box</option>
+          <option value="A">A Shape Box</option>
+          <option value="G">G Shape Box</option>
+          <option value="E">E Shape Box</option>
+          <option value="D">D Shape Box</option>
+        </select>
+      </div>
+
+      <!-- Fret Position Shift -->
+      <div class="flex flex-col gap-1 sm:col-span-2 lg:col-span-2">
+        <div class="flex justify-between items-center">
+          <label class="text-amber-500/80 uppercase font-semibold tracking-wider">Fret Window (<span id="posLabel">Frets 1–15</span>)</label>
+          <span class="text-[10px] text-amber-200/50">Use ← → Keys</span>
+        </div>
+        <div class="flex items-center gap-3 bg-[#1d140e] p-2 rounded-lg border border-[var(--border-bright)]">
+          <span class="text-amber-400 font-mono" id="posMin">1</span>
+          <input type="range" id="posSlider" min="0" max="12" step="1" value="0" class="flex-1">
+          <span class="text-amber-400 font-mono" id="posMax">15</span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- HARMONIC TEMPERATURE LAYER TOGGLES -->
+    <div class="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-[#140e0a] border border-[var(--border)] text-xs">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-layer-group text-amber-500"></i>
+        <span class="font-bold text-amber-200 uppercase tracking-wider">Harmonic Layers:</span>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button id="togChord" class="layer-btn active px-3 py-1.5 rounded-full border border-blue-500/50 bg-blue-950/40 text-blue-300 flex items-center gap-1.5 font-semibold transition hover:bg-blue-900/50">
+          <span class="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block shadow-sm"></span> Chord Tones
+        </button>
+        <button id="togPenta" class="layer-btn active px-3 py-1.5 rounded-full border border-green-500/50 bg-green-950/40 text-green-300 flex items-center gap-1.5 font-semibold transition hover:bg-green-900/50">
+          <span class="w-2.5 h-2.5 rounded-full bg-green-500 inline-block shadow-sm"></span> Pentatonic Core
+        </button>
+        <button id="togBlue" class="layer-btn active px-3 py-1.5 rounded-full border border-cyan-500/50 bg-cyan-950/40 text-cyan-300 flex items-center gap-1.5 font-semibold transition hover:bg-cyan-900/50">
+          <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block shadow-sm"></span> Blue Note (♭5)
+        </button>
+        <button id="togLead" class="layer-btn active px-3 py-1.5 rounded-full border border-amber-500/50 bg-amber-950/40 text-amber-300 flex items-center gap-1.5 font-semibold transition hover:bg-amber-900/50">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block shadow-sm"></span> Leading Tones
+        </button>
+        <button id="togSusp" class="layer-btn active px-3 py-1.5 rounded-full border border-red-500/50 bg-red-950/40 text-red-300 flex items-center gap-1.5 font-semibold transition hover:bg-red-900/50">
+          <span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block shadow-sm"></span> Tension / Extensions
+        </button>
+      </div>
+    </div>
+
+    <!-- FRETBOARD SVG CONTAINER -->
+    <div class="relative bg-[#190f09] rounded-xl border border-[var(--border)] p-4 overflow-x-auto shadow-2xl">
+      <svg id="fb" class="fretboard-svg min-w-[800px] w-full"></svg>
+      
+      <!-- Dynamic Note Inspection Bar -->
+      <div id="infoBar" class="mt-3 p-3 rounded-lg bg-[#0d0a07] border border-[var(--border)] text-xs flex items-center gap-3 text-amber-100/80 font-mono">
+        <i class="fa-solid fa-circle-info text-amber-500 text-sm"></i>
+        <span>Click or tap any note dot to listen and inspect details...</span>
+      </div>
+    </div>
+
+    <!-- ROCK RIFF GENERATOR & TAB PLAYER SECTION -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- Left Column: Generator Controls & Tone Shaping (5 cols) -->
+      <div class="lg:col-span-5 space-y-4 bg-[#140e0a] border border-[var(--border)] rounded-xl p-5 shadow-xl">
+        <div class="flex items-center justify-between border-b border-[var(--border)] pb-3">
+          <h2 class="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
+            <i class="fa-solid fa-wand-magic-sparkles text-amber-500"></i> Rock Riff Generator
+          </h2>
+          <span class="text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded font-mono font-bold">PROCEDURAL</span>
+        </div>
+
+        <!-- Riff Style Quick Presets -->
+        <div class="space-y-1.5">
+          <label class="text-xs text-amber-500/80 uppercase font-semibold">Riff Style Archetype</label>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <button class="preset-btn p-2 rounded-lg bg-[#1d140e] border border-amber-500/30 hover:border-amber-500 text-left transition hover:bg-amber-950/30 font-medium text-amber-100 flex items-center gap-2" data-preset="heavy_power">
+              <i class="fa-solid fa-bolt text-amber-500"></i> Heavy Power Chords
+            </button>
+            <button class="preset-btn p-2 rounded-lg bg-[#1d140e] border border-amber-500/30 hover:border-amber-500 text-left transition hover:bg-amber-950/30 font-medium text-amber-100 flex items-center gap-2" data-preset="blues_pentatonic">
+              <i class="fa-solid fa-guitar text-cyan-400"></i> Pentatonic Licks
+            </button>
+            <button class="preset-btn p-2 rounded-lg bg-[#1d140e] border border-amber-500/30 hover:border-amber-500 text-left transition hover:bg-amber-950/30 font-medium text-amber-100 flex items-center gap-2" data-preset="boogie_hardrock">
+              <i class="fa-solid fa-compact-disc text-green-400"></i> Boogie & Hard Rock
+            </button>
+            <button class="preset-btn p-2 rounded-lg bg-[#1d140e] border border-amber-500/30 hover:border-amber-500 text-left transition hover:bg-amber-950/30 font-medium text-amber-100 flex items-center gap-2" data-preset="pedal_thrash">
+              <i class="fa-solid fa-fire text-red-500"></i> Palm-Mute Pedal Riff
+            </button>
+          </div>
+        </div>
+
+        <!-- Custom Riff Sliders -->
+        <div class="space-y-3 pt-2 text-xs border-t border-[var(--border)]">
+          
+          <div class="space-y-1">
+            <div class="flex justify-between">
+              <label class="text-amber-200/80">Rhythmic Density & Syncopation</label>
+              <span id="densityVal" class="text-amber-400 font-mono">Medium</span>
+            </div>
+            <input type="range" id="riffDensity" min="1" max="3" step="1" value="2" class="w-full">
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex justify-between">
+              <label class="text-amber-200/80">Power Chords vs Single Notes</label>
+              <span id="chordsVal" class="text-amber-400 font-mono">50 / 50</span>
+            </div>
+            <input type="range" id="riffChords" min="0" max="100" step="10" value="50" class="w-full">
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex justify-between">
+              <label class="text-amber-200/80">Expressive Techniques (Bends/Hammers)</label>
+              <span id="expVal" class="text-amber-400 font-mono">Moderate</span>
+            </div>
+            <input type="range" id="riffExpression" min="0" max="100" step="20" value="40" class="w-full">
+          </div>
+
+        </div>
+
+        <!-- Tone & DSP Amp Controls -->
+        <div class="space-y-3 pt-3 border-t border-[var(--border)] text-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-amber-500 uppercase font-semibold tracking-wider">Guitar Amp Tone Preset</span>
+            <select id="ampPreset" class="bg-[#1d140e] border border-[var(--border-bright)] text-amber-100 rounded p-1 text-xs">
+              <option value="overdrive">Vintage Overdrive</option>
+              <option value="heavy_metal">Heavy High-Gain Distortion</option>
+              <option value="crunch">Plexi Tube Crunch</option>
+              <option value="clean_warm">Warm Clean Chorus</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Generate Button -->
+        <button id="generateBtn" class="w-full py-3 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-extrabold uppercase tracking-widest text-xs rounded-lg shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-rotate text-sm"></i> Generate New Rock Riff
+        </button>
+
+      </div>
+
+      <!-- Right Column: Animated Tablature & Audio Player (7 cols) -->
+      <div class="lg:col-span-7 flex flex-col justify-between bg-[#140e0a] border border-[var(--border)] rounded-xl p-5 shadow-xl space-y-4">
+        
+        <div>
+          <!-- Tab Header / Actions -->
+          <div class="flex flex-wrap items-center justify-between pb-3 border-b border-[var(--border)] gap-2">
+            <div>
+              <h2 class="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-sliders text-amber-500"></i> Interactive Guitar Tablature
+              </h2>
+              <p id="riffTitle" class="text-xs text-amber-400/80 font-mono mt-0.5">Title: A Minor Pentatonic Rocker</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button id="copyTabBtn" class="px-2.5 py-1.5 bg-[#1d140e] hover:bg-amber-950/40 border border-[var(--border-bright)] text-amber-200 text-xs rounded transition flex items-center gap-1.5" title="Copy ASCII Tab to Clipboard">
+                <i class="fa-solid fa-copy"></i> Copy Tab
+              </button>
+            </div>
+          </div>
+
+          <!-- TAB DISPLAY AREA -->
+          <div id="tabDisplay" class="tab-container mt-4 p-4 rounded-xl overflow-x-auto text-xs text-amber-300 leading-relaxed min-h-[180px] flex items-center">
+            <!-- Dynamic Tab rendered here -->
+          </div>
+        </div>
+
+        <!-- PLAYER CONTROLS BAR -->
+        <div class="bg-[#090705] p-3 rounded-xl border border-[var(--border)] space-y-3">
+          
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            
+            <!-- Play / Stop / Loop -->
+            <div class="flex items-center gap-2">
+              <button id="playBtn" class="w-10 h-10 rounded-full bg-amber-500 hover:bg-amber-400 text-black flex items-center justify-center text-base font-bold transition shadow-lg">
+                <i class="fa-solid fa-play ml-0.5"></i>
+              </button>
+              <button id="stopBtn" class="w-9 h-9 rounded-full bg-[#1d140e] hover:bg-red-950/50 border border-red-500/30 text-red-400 flex items-center justify-center text-xs transition">
+                <i class="fa-solid fa-stop"></i>
+              </button>
+              <button id="loopBtn" class="w-9 h-9 rounded-full bg-[#1d140e] border border-amber-500/30 text-amber-400 flex items-center justify-center text-xs transition active" title="Toggle Loop">
+                <i class="fa-solid fa-repeat"></i>
+              </button>
+            </div>
+
+            <!-- Tempo BPM Slider -->
+            <div class="flex items-center gap-3 bg-[#140e0a] px-3 py-1.5 rounded-lg border border-[var(--border)] text-xs">
+              <span class="text-amber-500 font-semibold uppercase">Tempo:</span>
+              <input type="range" id="bpmSlider" min="60" max="180" value="110" class="w-24 sm:w-28">
+              <span id="bpmVal" class="text-amber-300 font-mono font-bold w-12">110 BPM</span>
+            </div>
+
+          </div>
+
+          <!-- Riff Progress / Measure Bar -->
+          <div class="w-full bg-[#1d140e] h-2 rounded-full overflow-hidden border border-amber-500/20">
+            <div id="playbackProgress" class="bg-gradient-to-r from-amber-600 to-amber-400 h-full w-0 transition-all duration-75"></div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- LEGEND & FOOTER -->
+    <footer class="p-4 rounded-xl bg-[#140e0a] border border-[var(--border)] text-xs space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-4 text-amber-200/60 border-b border-[var(--border)] pb-3">
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span> <span>Root & Chord Tones (1, 3, 5)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-green-500 inline-block"></span> <span>Pentatonic Notes (2, 4, 6, ♭7)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-cyan-400 inline-block"></span> <span>Blue Note (♭5)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span> <span>Leading Tone (7)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span> <span>Tensions & Extensions</span>
+        </div>
+      </div>
+      <p class="text-center text-[11px] text-amber-200/40">
+        CAGED System Guitar Masterclass · Harmonic Temperature Visualization & Web Audio DSP Synthesizer Engine
+      </p>
+    </footer>
+
+  </div>
+
+<script>
+// ─── CONSTANTS & DATA STRUCTURES ──────────────────────────────────────────────
+
+const NOTES         = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const NOTES_FLAT    = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+const FLAT_KEYS     = ['F','Bb','Eb','Ab','Db','Gb'];
+
+// Standard Guitar Tuning: Low E (E2 = pitch index 4 in C0 scale) to High e
+const OPEN_STRINGS  = [4, 9, 2, 7, 11, 4]; // E2, A2, D3, G3, B3, E4 (MIDI relative pitch classes)
+const STRING_NAMES  = ['Low E','A','D','G','B','High e'];
+const STRING_LABELS = ['E','A','D','G','B','e'];
+
+const WINDOW = 14; // Frets shown in window
+const MAX_POS = 12;
+
+// CAGED Box Offset definitions relative to root note fret on Low E string
+const CAGED_WINDOWS = {
+  E: rf => [rf,       rf + 3],
+  D: rf => [rf + 2,   rf + 5],
+  C: rf => [rf + 3,   rf + 7],
+  A: rf => [rf + 5,   rf + 8],
+  G: rf => [rf + 7,   rf + 10],
+};
+
+const SHAPE_COLORS = { C:'#2563eb', A:'#16a34a', G:'#d48800', E:'#9333ea', D:'#dc2626' };
+const SHAPES = ['E','D','C','A','G'];
+
+// Scale Interval Definitions (in semitones from root)
+const SCALES = {
+  pentatonic_minor: { intervals: [0, 3, 5, 7, 10], degrees: {0:1, 3:3, 5:4, 7:5, 10:7} },
+  blues:            { intervals: [0, 3, 5, 6, 7, 10], degrees: {0:1, 3:3, 5:4, 6:'b5', 7:5, 10:7} },
+  minor:            { intervals: [0, 2, 3, 5, 7, 8, 10], degrees: {0:1, 2:2, 3:3, 5:4, 7:5, 8:6, 10:7} },
+  dorian:           { intervals: [0, 2, 3, 5, 7, 9, 10], degrees: {0:1, 2:2, 3:3, 5:4, 7:5, 9:6, 10:7} },
+  pentatonic_major: { intervals: [0, 2, 4, 7, 9], degrees: {0:1, 2:2, 4:3, 7:5, 9:6} },
+  major:            { intervals: [0, 2, 4, 5, 7, 9, 11], degrees: {0:1, 2:2, 4:3, 5:4, 7:5, 9:6, 11:7} },
+  mixolydian:       { intervals: [0, 2, 4, 5, 7, 9, 10], degrees: {0:1, 2:2, 4:3, 5:4, 7:5, 9:6, 10:7} }
+};
+
+// Harmonic Temperature Color Mapping based on musical function
+function getNoteTemperatureType(interval, mode) {
+  if (interval === 0) return 'chord'; // Root
+  if (interval === 6) return 'blue';  // Flat 5th blue note
+  
+  if (mode.includes('minor') || mode === 'blues' || mode === 'dorian') {
+    if (interval === 3 || interval === 7) return 'chord'; // Minor 3rd, 5th
+    if (interval === 5 || interval === 10) return 'penta'; // 4th, Flat 7th
+    if (interval === 2 || interval === 9) return 'lead';  // 2nd, Major 6th
+    return 'susp'; // Flat 6th, Major 7th
+  } else {
+    if (interval === 4 || interval === 7) return 'chord'; // Major 3rd, 5th
+    if (interval === 2 || interval === 9) return 'penta'; // Major 2nd, 6th
+    if (interval === 11) return 'lead'; // Major 7th
+    return 'susp'; // 4th
+  }
+}
+
+const TYPE_COLORS = {
+  chord: '#2563eb', // Blue
+  penta: '#16a34a', // Green
+  blue:  '#0891b2', // Cyan
+  lead:  '#d48800', // Gold
+  susp:  '#dc2626', // Red
+};
+
+// ─── GLOBAL APPLICATION STATE ────────────────────────────────────────────────
+
+const state = {
+  key: 'A',
+  mode: 'pentatonic_minor',
+  view: 'interval',
+  shape: 'all',
+  pos: 0,
+  layers: { chord:true, penta:true, blue:true, lead:true, susp:true },
+  bpm: 110,
+  isPlaying: false,
+  isLooping: true,
+  currentRiff: null,
+  playbackStep: -1,
+  ampPreset: 'overdrive'
+};
+
+// ─── AUDIO SYNTHESIZER ENGINE (WEB AUDIO API DSP) ─────────────────────────────
+
+class GuitarSynthEngine {
+  constructor() {
+    this.ctx = null;
+    this.masterGain = null;
+    this.distortionNode = null;
+    this.cabinetFilter = null;
+    this.initialized = false;
+  }
+
+  init() {
+    if (this.initialized) return;
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    this.ctx = new AudioCtx();
+
+    this.masterGain = this.ctx.createGain();
+    this.masterGain.gain.value = 0.7;
+
+    // Cabinet simulation filter (low pass to reduce harsh high frequencies)
+    this.cabinetFilter = this.ctx.createBiquadFilter();
+    this.cabinetFilter.type = 'lowpass';
+    this.cabinetFilter.frequency.value = 3200;
+
+    // Waveshaper Distortion
+    this.distortionNode = this.ctx.createWaveShaper();
+    this.setAmpPreset(state.ampPreset);
+
+    // Connect DSP Chain: Distortion -> Cabinet -> Master Gain -> Destination
+    this.distortionNode.connect(this.cabinetFilter);
+    this.cabinetFilter.connect(this.masterGain);
+    this.masterGain.connect(this.ctx.destination);
+
+    this.initialized = true;
+  }
+
+  makeDistortionCurve(k = 50) {
+    const n = 44100;
+    const curve = new Float32Array(n);
+    const deg = Math.PI / 180;
+    for (let i = 0; i < n; ++i) {
+      let x = (i * 2) / n - 1;
+      curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+    }
+    return curve;
+  }
+
+  setAmpPreset(preset) {
+    if (!this.initialized) return;
+    switch(preset) {
+      case 'heavy_metal':
+        this.distortionNode.curve = this.makeDistortionCurve(120);
+        this.cabinetFilter.frequency.value = 2800;
+        break;
+      case 'overdrive':
+        this.distortionNode.curve = this.makeDistortionCurve(45);
+        this.cabinetFilter.frequency.value = 3400;
+        break;
+      case 'crunch':
+        this.distortionNode.curve = this.makeDistortionCurve(20);
+        this.cabinetFilter.frequency.value = 4000;
+        break;
+      case 'clean_warm':
+        this.distortionNode.curve = this.makeDistortionCurve(0);
+        this.cabinetFilter.frequency.value = 5000;
+        break;
+    }
+  }
+
+  // Calculate Frequency for String and Fret
+  getFrequency(stringIndex, fret) {
+    // Standard Guitar MIDI pitches: Low E = 40, A = 45, D = 50, G = 55, B = 59, High e = 64
+    const stringBaseMidi = [40, 45, 50, 55, 59, 64];
+    const midiPitch = stringBaseMidi[stringIndex] + fret;
+    return 440 * Math.pow(2, (midiPitch - 69) / 12);
+  }
+
+  // Synthesize Plucked Guitar Note with Optional Mute & Pitch Bends
+  playNote({ stringIndex, fret, duration = 0.4, muted = false, bend = 0, slide = 0 }) {
+    if (!this.initialized) this.init();
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+
+    const freq = this.getFrequency(stringIndex, fret);
+    const now = this.ctx.currentTime;
+
+    // Dual Oscillator setup for rich harmonic guitar timbre
+    const osc1 = this.ctx.createOscillator();
+    const osc2 = this.ctx.createOscillator();
+    
+    osc1.type = 'sawtooth';
+    osc2.type = 'triangle';
+
+    osc1.frequency.setValueAtTime(freq, now);
+    osc2.frequency.setValueAtTime(freq * 1.002, now); // subtle detune
+
+    // Expressive pitch bend or slide handling
+    if (bend > 0) {
+      const targetFreq = this.getFrequency(stringIndex, fret + bend);
+      osc1.frequency.exponentialRampToValueAtTime(targetFreq, now + duration * 0.6);
+      osc2.frequency.exponentialRampToValueAtTime(targetFreq * 1.002, now + duration * 0.6);
+    } else if (slide !== 0) {
+      const targetFreq = this.getFrequency(stringIndex, fret + slide);
+      osc1.frequency.exponentialRampToValueAtTime(targetFreq, now + duration * 0.5);
+      osc2.frequency.exponentialRampToValueAtTime(targetFreq * 1.002, now + duration * 0.5);
+    }
+
+    // Pluck Amp Envelope
+    const noteGain = this.ctx.createGain();
+    const peakGain = muted ? 0.25 : 0.6;
+    const decayTime = muted ? 0.08 : duration * 1.2;
+
+    noteGain.gain.setValueAtTime(0.001, now);
+    noteGain.gain.linearRampToValueAtTime(peakGain, now + 0.008); // fast attack
+    noteGain.gain.exponentialRampToValueAtTime(0.001, now + decayTime);
+
+    // Muted note filter damping
+    const noteFilter = this.ctx.createBiquadFilter();
+    noteFilter.type = 'lowpass';
+    noteFilter.frequency.setValueAtTime(muted ? 900 : 4500, now);
+
+    // Connect Note Pipeline
+    osc1.connect(noteFilter);
+    osc2.connect(noteFilter);
+    noteFilter.connect(noteGain);
+    noteGain.connect(this.distortionNode);
+
+    osc1.start(now);
+    osc2.start(now);
+    osc1.stop(now + decayTime + 0.05);
+    osc2.stop(now + decayTime + 0.05);
+  }
+}
+
+const synth = new GuitarSynthEngine();
+
+// ─── PROCEDURAL ROCK RIFF GENERATOR ──────────────────────────────────────────
+
+class RockRiffGenerator {
+  static generate(key, modeKey, shapeFilter, preset = 'heavy_power') {
+    const scaleInfo = SCALES[modeKey] || SCALES.pentatonic_minor;
+    const rootIdx = NOTES.indexOf(key);
+    
+    // Determine active frets based on CAGED shape or full fretboard
+    let minFret = 0, maxFret = 12;
+    if (shapeFilter !== 'all') {
+      const rf = (rootIdx - 4 + 12) % 12;
+      const [lo, hi] = CAGED_WINDOWS[shapeFilter](rf);
+      minFret = Math.max(0, lo);
+      maxFret = Math.min(15, hi);
+    }
+
+    // Find playable scale notes mapped to guitar string/fret coordinates
+    const validNotes = [];
+    for (let str = 0; str < 6; str++) {
+      for (let f = minFret; f <= maxFret; f++) {
+        const notePitch = (OPEN_STRINGS[str] + f) % 12;
+        const interval = (notePitch - rootIdx + 12) % 12;
+        if (scaleInfo.intervals.includes(interval)) {
+          validNotes.push({ str, fret: f, interval, degree: scaleInfo.degrees[interval] });
+        }
+      }
+    }
+
+    const steps = [];
+    const numSteps = 16; // Standard 16-step measure (16th notes)
+
+    // Generator Algorithms per Preset
+    for (let i = 0; i < numSteps; i++) {
+      const isQuarterBeat = i % 4 === 0;
+      const isOffBeat = i % 2 === 1;
+
+      if (preset === 'heavy_power' || preset === 'pedal_thrash') {
+        // Heavy Palm Mute Pedal Note Riff (E/A String root pedal)
+        if (isOffBeat && Math.random() < 0.75) {
+          steps.push({ notes: [{ str: 0, fret: minFret }], muted: true, duration: 0.15 });
+        } else {
+          // Power Chord (Root + 5th)
+          const rootCandidate = validNotes.find(n => n.interval === 0 && (n.str === 0 || n.str === 1));
+          if (rootCandidate && Math.random() < 0.8) {
+            steps.push({
+              notes: [
+                { str: rootCandidate.str, fret: rootCandidate.fret },
+                { str: rootCandidate.str + 1, fret: rootCandidate.fret + 2 }
+              ],
+              muted: false,
+              duration: 0.3
+            });
+          } else {
+            const randNote = validNotes[Math.floor(Math.random() * validNotes.length)];
+            steps.push({ notes: [randNote], muted: false, duration: 0.2 });
+          }
+        }
+      } 
+      else if (preset === 'blues_pentatonic') {
+        // Expressive Pentatonic Solo Licks with Bends & Hammer-ons
+        if (Math.random() < 0.2 && i > 0) {
+          steps.push({ rest: true }); // Syncopated rest
+        } else {
+          const highNotes = validNotes.filter(n => n.str >= 2);
+          const sel = highNotes[Math.floor(Math.random() * highNotes.length)] || validNotes[0];
+          
+          const bend = (sel.interval === 5 || sel.interval === 10) && Math.random() < 0.35 ? 2 : 0;
+          steps.push({
+            notes: [{ str: sel.str, fret: sel.fret }],
+            bend,
+            duration: bend ? 0.4 : 0.25
+          });
+        }
+      } 
+      else {
+        // Boogie / Hard Rock Standard Groove
+        if (i % 2 === 0) {
+          const lowNotes = validNotes.filter(n => n.str <= 2);
+          const sel = lowNotes[Math.floor(Math.random() * lowNotes.length)] || validNotes[0];
+          steps.push({ notes: [{ str: sel.str, fret: sel.fret }], muted: Math.random() < 0.3, duration: 0.2 });
+        } else {
+          const randNote = validNotes[Math.floor(Math.random() * validNotes.length)];
+          steps.push({ notes: [randNote], duration: 0.2 });
+        }
+      }
+    }
+
+    return {
+      title: `${key} ${modeKey.replace('_', ' ').toUpperCase()} · ${preset.replace('_', ' ').toUpperCase()} RIFF`,
+      steps
+    };
+  }
+}
+
+// ─── TABLATURE GRAPHIC RENDERER ───────────────────────────────────────────────
+
+function renderTablature(riff, activeStep = -1) {
+  const tabContainer = document.getElementById('tabDisplay');
+  if (!riff || !riff.steps) return;
+
+  let html = `<div class="font-mono space-y-1 w-full select-none">`;
+
+  // Standard 6 string representation (e, B, G, D, A, E)
+  for (let str = 5; str >= 0; str--) {
+    let line = `<div class="flex items-center"><span class="w-6 text-amber-500 font-bold">${STRING_LABELS[str]}|</span>`;
+    
+    riff.steps.forEach((step, idx) => {
+      const isCurrent = idx === activeStep;
+      const highlightClass = isCurrent ? 'tab-col-highlight px-1' : 'px-1';
+
+      if (step.rest) {
+        line += `<span class="${highlightClass} text-amber-200/30">---</span>`;
+      } else {
+        const note = step.notes.find(n => n.str === str);
+        if (note) {
+          let fretStr = note.fret < 10 ? ` ${note.fret}` : `${note.fret}`;
+          if (step.bend) fretStr += 'b';
+          else if (step.muted) fretStr = ' x';
+          else fretStr = fretStr.padEnd(3, '-');
+          line += `<span class="${highlightClass} text-amber-200 font-bold">${fretStr}</span>`;
+        } else {
+          line += `<span class="${highlightClass} text-amber-200/20">---</span>`;
+        }
+      }
+      if ((idx + 1) % 4 === 0 && idx < riff.steps.length - 1) {
+        line += `<span class="text-amber-500/40 px-1">|</span>`;
+      }
+    });
+
+    line += `<span class="text-amber-500 font-bold">|</span></div>`;
+    html += line;
+  }
+
+  html += `</div>`;
+  tabContainer.innerHTML = html;
+}
+
+// ─── FRETBOARD SVG RENDER ENGINE ──────────────────────────────────────────────
+
+function renderFretboard() {
+  const fb = document.getElementById('fb');
+  const { key, mode, view, shape, pos, layers } = state;
+
+  const rootIdx = NOTES.indexOf(key);
+  const scaleInfo = SCALES[mode] || SCALES.pentatonic_minor;
+  const rf = (rootIdx - 4 + 12) % 12; // Root fret on low E
+
+  const FRET_W = 54;
+  const STRING_H = 32;
+  const DOT_R = 12;
+  const LEFT = 44;
+  const TOP = 28;
+
+  const fretStart = pos;
+  const fretEnd = pos + WINDOW;
+
+  const W = LEFT + WINDOW * FRET_W + 40;
+  const H = TOP + 5 * STRING_H + 45;
+
+  fb.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  let svg = ``;
+
+  // Fretboard Wood Background
+  svg += `<rect x="${LEFT}" y="${TOP}" width="${WINDOW * FRET_W}" height="${5 * STRING_H}" fill="#1a0d06" rx="4"/>`;
+
+  // Fret Inlays (Frets 3, 5, 7, 9, 12, 15)
+  [3, 5, 7, 9, 12, 15].forEach(f => {
+    if (f > fretStart && f <= fretEnd) {
+      const fi = f - fretStart;
+      const cx = LEFT + fi * FRET_W - FRET_W / 2;
+      const cy = TOP + (5 * STRING_H) / 2;
+      if (f === 12) {
+        svg += `<circle cx="${cx}" cy="${cy - 10}" r="4" fill="#3a2212"/>`;
+        svg += `<circle cx="${cx}" cy="${cy + 10}" r="4" fill="#3a2212"/>`;
+      } else {
+        svg += `<circle cx="${cx}" cy="${cy}" r="4" fill="#3a2212"/>`;
+      }
+    }
+  });
+
+  // Fret Metal Lines & Fret Numbering Labels
+  for (let fi = 0; fi <= WINDOW; fi++) {
+    const f = fretStart + fi;
+    const x = LEFT + fi * FRET_W;
+    const isNut = f === 0;
+
+    svg += `<line x1="${x}" y1="${TOP}" x2="${x}" y2="${TOP + 5 * STRING_H}" stroke="${isNut ? '#d48800' : '#6a4a2e'}" stroke-width="${isNut ? 5 : 1.5}"/>`;
+
+    if (fi > 0) {
+      svg += `<text x="${x - FRET_W / 2}" y="${TOP + 5 * STRING_H + 20}" text-anchor="middle" font-size="10" fill="#a07850" font-family="monospace">${f}</text>`;
+    }
+  }
+
+  // Guitar Strings
+  for (let s = 0; s < 6; s++) {
+    const y = TOP + s * STRING_H;
+    const thickness = 1 + (5 - s) * 0.35; // Thicker low E string
+    svg += `<line x1="${LEFT}" y1="${y}" x2="${LEFT + WINDOW * FRET_W}" y2="${y}" stroke="#c8b080" stroke-width="${thickness}" opacity="0.7"/>`;
+    svg += `<text x="${LEFT - 12}" y="${y + 4}" text-anchor="end" font-size="11" fill="#d48800" font-weight="bold" font-family="monospace">${STRING_LABELS[5 - s]}</text>`;
+  }
+
+  // CAGED Shape Highlight Rectangles
+  if (shape !== 'all') {
+    let [lo, hi] = CAGED_WINDOWS[shape](rf);
+    while (hi < fretStart) { lo += 12; hi += 12; }
+    while (lo > fretEnd) { lo -= 12; hi -= 12; }
+
+    const visLo = Math.max(lo, fretStart);
+    const visHi = Math.min(hi, fretEnd);
+
+    if (visHi >= visLo) {
+      const rx = LEFT + (visLo - fretStart) * FRET_W;
+      const rw = (visHi - visLo + 1) * FRET_W;
+      svg += `<rect x="${rx}" y="${TOP}" width="${rw}" height="${5 * STRING_H}" fill="${SHAPE_COLORS[shape]}" opacity="0.12" rx="3"/>`;
+      svg += `<text x="${rx + rw/2}" y="${TOP + 5 * STRING_H + 36}" text-anchor="middle" font-size="11" font-weight="bold" fill="${SHAPE_COLORS[shape]}">${shape} BOX POSITION</text>`;
+    }
+  }
+
+  // Active Note Dots
+  for (let row = 0; row < 6; row++) {
+    const strIdx = 5 - row; // String index (0 = Low E)
+    const y = TOP + row * STRING_H;
+
+    for (let fi = 0; fi <= WINDOW; fi++) {
+      const f = fretStart + fi;
+      const notePitch = (OPEN_STRINGS[strIdx] + f) % 12;
+      const interval = (notePitch - rootIdx + 12) % 12;
+
+      if (!scaleInfo.intervals.includes(interval)) continue;
+
+      const tempType = getNoteTemperatureType(interval, mode);
+      if (!layers[tempType]) continue;
+
+      // Filter by shape box if enabled
+      if (shape !== 'all') {
+        let [lo, hi] = CAGED_WINDOWS[shape](rf);
+        while (hi < fretStart) { lo += 12; hi += 12; }
+        while (lo > fretEnd) { lo -= 12; hi -= 12; }
+        if (f < lo || f > hi) continue;
+      }
+
+      const cx = fi === 0 ? LEFT - 18 : LEFT + fi * FRET_W - FRET_W / 2;
+      const col = TYPE_COLORS[tempType];
+
+      // Highlight active playing note from tab sequence
+      let extraClass = '';
+      if (state.isPlaying && state.currentRiff) {
+        const step = state.currentRiff.steps[state.playbackStep];
+        if (step && !step.rest && step.notes.some(n => n.str === strIdx && n.fret === f)) {
+          extraClass = 'playing-note';
+        }
+      }
+
+      // Root ring highlight
+      if (interval === 0) {
+        svg += `<circle cx="${cx}" cy="${y}" r="${DOT_R + 4}" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.8"/>`;
+      }
+
+      // Note Dot SVG
+      svg += `<circle cx="${cx}" cy="${y}" r="${DOT_R}" fill="${col}" class="note-dot ${extraClass}" data-str="${strIdx}" data-fret="${f}" data-note="${NOTES[notePitch]}" data-deg="${scaleInfo.degrees[interval]}"/>`;
+
+      // Label Display (Interval vs Letter Name)
+      const labelText = view === 'interval' ? `${scaleInfo.degrees[interval]}` : (FLAT_KEYS.includes(key) ? NOTES_FLAT[notePitch] : NOTES[notePitch]);
+      svg += `<text x="${cx}" y="${y + 4}" text-anchor="middle" font-size="${labelText.length > 2 ? '8' : '10'}" font-weight="bold" fill="#ffffff" pointer-events="none">${labelText}</text>`;
+    }
+  }
+
+  fb.innerHTML = svg;
+
+  // Interactive Click Event Listener for Note Dots
+  fb.querySelectorAll('.note-dot').forEach(dot => {
+    dot.addEventListener('click', function() {
+      const strIdx = parseInt(this.getAttribute('data-str'));
+      const fret = parseInt(this.getAttribute('data-fret'));
+      const noteName = this.getAttribute('data-note');
+      const degree = this.getAttribute('data-deg');
+
+      synth.playNote({ stringIndex: strIdx, fret, duration: 0.5 });
+
+      document.getElementById('infoBar').innerHTML = `
+        <span class="font-bold text-amber-400 text-sm">${noteName}</span>
+        <span class="text-amber-500/50">•</span>
+        <span>Degree: <strong class="text-white">${degree}</strong></span>
+        <span class="text-amber-500/50">•</span>
+        <span>${STRING_NAMES[strIdx]} String</span>
+        <span class="text-amber-500/50">•</span>
+        <span>Fret ${fret}</span>
+      `;
+    });
+  });
+}
+
+// ─── PLAYBACK TIMELINE SEQUENCER ──────────────────────────────────────────────
+
+let sequencerTimer = null;
+
+function startPlayback() {
+  if (!state.currentRiff) return;
+  synth.init();
+  state.isPlaying = true;
+  state.playbackStep = -1;
+
+  document.getElementById('playBtn').innerHTML = `<i class="fa-solid fa-pause"></i>`;
+
+  const stepInterval = (60 / state.bpm / 4) * 1000; // 16th note timing
+
+  sequencerTimer = setInterval(() => {
+    state.playbackStep++;
+
+    if (state.playbackStep >= state.currentRiff.steps.length) {
+      if (state.isLooping) {
+        state.playbackStep = 0;
+      } else {
+        stopPlayback();
+        return;
+      }
+    }
+
+    const step = state.currentRiff.steps[state.playbackStep];
+    if (step && !step.rest) {
+      step.notes.forEach(n => {
+        synth.playNote({
+          stringIndex: n.str,
+          fret: n.fret,
+          duration: step.duration || 0.25,
+          muted: step.muted || false,
+          bend: step.bend || 0
+        });
+      });
+    }
+
+    // Update Progress Bar & Graphics Sync
+    const progressPct = ((state.playbackStep + 1) / state.currentRiff.steps.length) * 100;
+    document.getElementById('playbackProgress').style.width = `${progressPct}%`;
+
+    renderTablature(state.currentRiff, state.playbackStep);
+    renderFretboard();
+
+  }, stepInterval);
+}
+
+function stopPlayback() {
+  state.isPlaying = false;
+  state.playbackStep = -1;
+  clearInterval(sequencerTimer);
+  document.getElementById('playBtn').innerHTML = `<i class="fa-solid fa-play ml-0.5"></i>`;
+  document.getElementById('playbackProgress').style.width = `0%`;
+  renderTablature(state.currentRiff, -1);
+  renderFretboard();
+}
+
+// ─── INITIALIZATION & EVENT BINDINGS ──────────────────────────────────────────
+
+function initApp() {
+  // Populate Key Dropdown
+  const keySelect = document.getElementById('keySelect');
+  ['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'].forEach(k => {
+    const opt = document.createElement('option');
+    opt.value = k; opt.textContent = k;
+    keySelect.appendChild(opt);
+  });
+  keySelect.value = state.key;
+
+  // Event Listeners for Controls
+  keySelect.addEventListener('change', () => { state.key = keySelect.value; updateRiffAndBoard(); });
+  document.getElementById('modeSelect').addEventListener('change', (e) => { state.mode = e.target.value; updateRiffAndBoard(); });
+  document.getElementById('viewSelect').addEventListener('change', (e) => { state.view = e.target.value; renderFretboard(); });
+  document.getElementById('shapeSelect').addEventListener('change', (e) => { state.shape = e.target.value; updateRiffAndBoard(); });
+
+  // Fret Window Slider
+  const posSlider = document.getElementById('posSlider');
+  posSlider.addEventListener('input', () => {
+    state.pos = parseInt(posSlider.value);
+    document.getElementById('posMin').textContent = state.pos + 1;
+    document.getElementById('posMax').textContent = state.pos + WINDOW;
+    document.getElementById('posLabel').textContent = `Frets ${state.pos + 1}–${state.pos + WINDOW}`;
+    renderFretboard();
+  });
+
+  // Layer Toggles
+  ['Chord','Penta','Blue','Lead','Susp'].forEach(l => {
+    const btn = document.getElementById('tog' + l);
+    btn.addEventListener('click', () => {
+      const k = l.toLowerCase();
+      state.layers[k] = !state.layers[k];
+      btn.classList.toggle('active', state.layers[k]);
+      renderFretboard();
+    });
+  });
+
+  // Riff Generator & Preset Buttons
+  document.getElementById('generateBtn').addEventListener('click', generateRiff);
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const preset = this.getAttribute('data-preset');
+      generateRiff(preset);
+    });
+  });
+
+  // Audio Engine & Controls
+  document.getElementById('audioInitBtn').addEventListener('click', () => {
+    synth.init();
+    document.getElementById('audioStatus').className = 'inline-block w-2.5 h-2.5 rounded-full bg-green-500 shadow-md';
+  });
+
+  document.getElementById('masterVolume').addEventListener('input', (e) => {
+    if (synth.masterGain) synth.masterGain.gain.value = parseFloat(e.target.value);
+  });
+
+  document.getElementById('ampPreset').addEventListener('change', (e) => {
+    state.ampPreset = e.target.value;
+    synth.setAmpPreset(state.ampPreset);
+  });
+
+  // Player Controls
+  document.getElementById('playBtn').addEventListener('click', () => {
+    if (state.isPlaying) stopPlayback();
+    else startPlayback();
+  });
+  document.getElementById('stopBtn').addEventListener('click', stopPlayback);
+
+  document.getElementById('loopBtn').addEventListener('click', function() {
+    state.isLooping = !state.isLooping;
+    this.classList.toggle('active', state.isLooping);
+  });
+
+  const bpmSlider = document.getElementById('bpmSlider');
+  bpmSlider.addEventListener('input', () => {
+    state.bpm = parseInt(bpmSlider.value);
+    document.getElementById('bpmVal').textContent = `${state.bpm} BPM`;
+    if (state.isPlaying) {
+      stopPlayback();
+      startPlayback();
+    }
+  });
+
+  // Keyboard Shortcuts
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') {
+      state.pos = Math.min(MAX_POS, state.pos + 1);
+      posSlider.value = state.pos;
+      renderFretboard();
+    } else if (e.key === 'ArrowLeft') {
+      state.pos = Math.max(0, state.pos - 1);
+      posSlider.value = state.pos;
+      renderFretboard();
+    } else if (e.code === 'Space') {
+      e.preventDefault();
+      if (state.isPlaying) stopPlayback();
+      else startPlayback();
+    }
+  });
+
+  // Initial Riff Generation & Render
+  generateRiff('heavy_power');
+}
+
+function generateRiff(preset = 'heavy_power') {
+  if (state.isPlaying) stopPlayback();
+  state.currentRiff = RockRiffGenerator.generate(state.key, state.mode, state.shape, preset);
+  document.getElementById('riffTitle').textContent = `Title: ${state.currentRiff.title}`;
+  renderTablature(state.currentRiff);
+  renderFretboard();
+}
+
+function updateRiffAndBoard() {
+  generateRiff();
+}
+
+// Initialize App on DOM Ready
+window.addEventListener('DOMContentLoaded', initApp);
+</script>
+</body>
+</html>
